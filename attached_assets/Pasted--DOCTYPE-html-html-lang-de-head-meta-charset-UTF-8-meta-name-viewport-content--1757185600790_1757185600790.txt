@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nachhaltigkeits‑Check</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden;
+    }
+    .container { width: 100%; max-width: 400px; height: 90vh; max-height: 700px; position: relative; }
+
+    /* Onboarding */
+    .onboarding { background: #fff; border-radius: 20px; padding: 40px 30px; box-shadow: 0 20px 60px rgba(0,0,0,.3); animation: slideIn .5s ease; }
+    .onboarding h1 { color: #333; margin-bottom: 30px; font-size: 28px; text-align: center; }
+    .form-group { margin-bottom: 25px; }
+    .form-group label { display: block; margin-bottom: 10px; color: #555; font-weight: 500; }
+    .form-group select, .form-group input { width: 100%; padding: 12px; border: 2px solid #e1e1e1; border-radius: 10px; font-size: 16px; transition: border-color .3s; }
+    .form-group select:focus, .form-group input:focus { outline: none; border-color: #667eea; }
+    .start-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; border-radius: 10px; font-size: 18px; font-weight: 700; cursor: pointer; transition: transform .2s; }
+    .start-btn:hover { transform: translateY(-2px); }
+
+    /* Cards */
+    .card-stack { position: relative; height: 100%; display: none; }
+    .card { position: absolute; inset: 0; background: #fff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,.3); cursor: grab; transition: transform .2s, opacity .2s; display: flex; flex-direction: column; padding: 30px; }
+    .card.dragging { transition: none; }
+    .card.swiped-right { transform: translateX(150%) rotate(20deg); opacity: 0; }
+    .card.swiped-left  { transform: translateX(-150%) rotate(-20deg); opacity: 0; }
+    .question-number { color: #999; font-size: 14px; margin-bottom: 20px; }
+    .question { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #333; text-align: center; line-height: 1.5; padding: 20px 0; }
+    .swipe-buttons { display: flex; justify-content: space-around; padding: 20px 0; }
+    .swipe-btn { width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; transition: transform .2s; font-size: 30px; display: flex; align-items: center; justify-content: center; }
+    .swipe-btn:hover { transform: scale(1.1); }
+    .no-btn  { background: #ff4458; color: #fff; }
+    .yes-btn { background: #00d387; color: #fff; }
+
+    /* Reason modal */
+    .reason-modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn .3s; }
+    .reason-modal.active { display: flex; }
+    .reason-content { background: #fff; border-radius: 20px; padding: 30px; max-width: 350px; width: 90%; animation: slideUp .3s; }
+    .reason-title { font-size: 20px; margin-bottom: 20px; text-align: center; color: #333; }
+    .reason-options { display: flex; flex-direction: column; gap: 12px; }
+    .reason-btn { padding: 15px; background: #f5f5f5; border: 2px solid transparent; border-radius: 10px; cursor: pointer; transition: all .3s; text-align: left; font-size: 14px; }
+    .reason-btn:hover { background: #e8e8e8; border-color: #667eea; }
+    .reason-btn.selected { background: #f0f4ff; border-color: #667eea; }
+    .continue-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 20px; }
+
+    /* Results */
+    .results { background: #fff; border-radius: 20px; padding: 40px 30px; box-shadow: 0 20px 60px rgba(0,0,0,.3); display: none; animation: slideIn .5s; max-height: 90vh; overflow-y: auto; }
+    .results h2 { color: #333; margin-bottom: 30px; text-align: center; }
+    .score { font-size: 48px; font-weight: 700; text-align: center; margin-bottom: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .score-bar { width: 100%; height: 30px; background: #f0f0f0; border-radius: 15px; overflow: hidden; margin-bottom: 30px; }
+    .score-fill { height: 100%; background: linear-gradient(135deg, #00d387 0%, #667eea 100%); transition: width 1s ease; }
+    .summary { display: flex; justify-content: space-around; margin-bottom: 30px; padding: 20px; background: #f9f9f9; border-radius: 10px; }
+    .summary-item { text-align: center; }
+    .summary-number { font-size: 24px; font-weight: 700; color: #333; }
+    .summary-label { font-size: 14px; color: #666; margin-top: 5px; }
+    .restart-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; border-radius: 10px; font-size: 18px; font-weight: 700; cursor: pointer; }
+
+    /* Sync indicator */
+    .sync-indicator { position: fixed; top: 20px; right: 20px; padding: 8px 12px; background: rgba(255,255,255,.9); border-radius: 20px; font-size: 12px; display: none; align-items: center; gap: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.1); }
+    .sync-indicator.saving, .sync-indicator.saved, .sync-indicator.error { display: flex; }
+    .sync-indicator.saving { color: #667eea; }
+    .sync-indicator.saved { color: #00d387; }
+    .sync-indicator.error { color: #ff4458; }
+    .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.5s infinite; }
+
+    @keyframes pulse { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(30px) } to { opacity: 1; transform: translateY(0) } }
+    @keyframes slideUp { from { transform: translateY(30px) } to { transform: translateY(0) } }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Sync Indicator -->
+    <div class="sync-indicator" id="syncIndicator" aria-live="polite">
+      <div class="sync-dot"></div>
+      <span id="syncText">Speichern…</span>
+    </div>
+
+    <!-- Onboarding -->
+    <div class="onboarding" id="onboarding">
+      <h1>🌱 Nachhaltigkeits‑Check</h1>
+      <div class="form-group">
+        <label for="gender">Geschlecht:</label>
+        <select id="gender" required>
+          <option value="">Bitte wählen</option>
+          <option value="männlich">Männlich</option>
+          <option value="weiblich">Weiblich</option>
+          <option value="divers">Divers</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="age">Alter:</label>
+        <input type="number" id="age" min="16" max="100" required placeholder="z.B. 25" autocomplete="off" />
+      </div>
+      <button class="start-btn" id="startBtn" type="button">Quiz starten</button>
+    </div>
+
+    <!-- Cards -->
+    <div class="card-stack" id="cardStack"></div>
+
+    <!-- Reason Modal -->
+    <div class="reason-modal" id="reasonModal" aria-modal="true" role="dialog">
+      <div class="reason-content">
+        <h3 class="reason-title" id="reasonTitle">Warum?</h3>
+        <div class="reason-options" id="reasonOptions"></div>
+        <button class="continue-btn" id="continueBtn" type="button">Weiter</button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results" id="results">
+      <h2>🎉 Deine Ergebnisse</h2>
+      <div class="score" id="score">0%</div>
+      <div class="score-bar"><div class="score-fill" id="scoreFill"></div></div>
+      <div class="summary">
+        <div class="summary-item">
+          <div class="summary-number" id="yesCount">0</div>
+          <div class="summary-label">Ja‑Antworten</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-number" id="noCount">0</div>
+          <div class="summary-label">Nein‑Antworten</div>
+        </div>
+      </div>
+      <div class="upload-status success" style="display:block; padding:15px; margin-bottom:20px; border-radius:10px; text-align:center; background:#d4edda; color:#155724;">
+        ✓ Alle Antworten wurden gespeichert.
+      </div>
+      <button class="restart-btn" type="button" onclick="location.reload()">Nochmal spielen</button>
+    </div>
+  </div>
+
+  <script>
+    // Google Form Konfiguration – URL muss auf /formResponse enden
+    const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScIvAJMpudT-btelebXrroFEt0DlLT-sVyrmfLmeJlAQPagfg/formResponse';
+
+    // Entry IDs (aus dem vorausgefüllten Link)
+    const ENTRY_IDS = {
+      timestamp: 'entry.699572234',
+      sessionId: 'entry.1333262992',
+      age: 'entry.769746036',
+      gender: 'entry.1403555863',
+      questionNumber: 'entry.752440143',
+      totalQuestions: 'entry.340773159',
+      questionId: 'entry.1216034855',
+      question: 'entry.1339611342',
+      answer: 'entry.1112129369',
+      reasons: 'entry.1777972951',
+      isComplete: 'entry.564162876'
+    };
+
+    const questionsOriginal = [
+      { id: 1, text: 'Nutze ich regelmässig den ÖV, das Velo oder gehe zu Fuss statt mit dem Auto zu fahren?', yesReasons: ['spart CO₂', 'ist günstiger', 'fördert die Gesundheit'], noReasons: ['keine passende Verbindung', 'Zeitdruck', 'körperliche Einschränkungen'] },
+      { id: 2, text: 'Kaufe ich Lebensmittel oder Produkte aus regionaler Herkunft?', yesReasons: ['kurze Transportwege', 'Unterstützung lokaler Produzenten', 'frischere Produkte'], noReasons: ['höhere Preise', 'eingeschränkte Auswahl', 'fehlende Verfügbarkeit'] },
+      { id: 3, text: 'Schalte ich elektrische Geräte und Licht aus, wenn ich sie nicht brauche?', yesReasons: ['senkt Stromverbrauch', 'spart Kosten', 'verlängert Lebensdauer der Geräte'], noReasons: ['Bequemlichkeit', 'Geräte schwer erreichbar', 'Gewohnheit'] },
+      { id: 4, text: 'Stelle ich die Heizung im Winter nicht höher als nötig?', yesReasons: ['spart Energie', 'reduziert Heizkosten', 'fördert bewusstes Wohnen'], noReasons: ['hoher Wärmebedarf', 'schlechte Isolation', 'Komfort wichtiger'] },
+      { id: 5, text: 'Verkürze ich meine Duschzeit, um Wasser zu sparen?', yesReasons: ['spart Wasser', 'spart Energie fürs Erwärmen', 'schont die Umwelt'], noReasons: ['Entspannung wichtig', 'Gewohnheit', 'kein Bewusstsein für Wasserverbrauch'] },
+      { id: 6, text: 'Kaufe ich Kleidung nur, wenn ich sie wirklich brauche?', yesReasons: ['vermeidet Überproduktion', 'spart Geld', 'weniger Abfall'], noReasons: ['Modeinteresse', 'Impulskäufe', 'günstige Preise verleiten'] },
+      { id: 7, text: 'Verwende ich Mehrwegflaschen, Taschen oder Behälter anstelle von Einwegprodukten?', yesReasons: ['reduziert Müll', 'spart Ressourcen', 'langfristig günstiger'], noReasons: ['Spontankäufe', 'fehlende Mitnahme', 'Einweg praktischer'] },
+      { id: 8, text: 'Esse ich mindestens an einigen Tagen pro Woche kein Fleisch?', yesReasons: ['geringerer CO₂‑Fussabdruck', 'gesünder', 'Tierwohl'], noReasons: ['Gewohnheit', 'Geschmack', 'Mangel an Alternativen'] },
+      { id: 9, text: 'Vermeide ich unnötige Flugreisen?', yesReasons: ['weniger CO₂‑Emissionen', 'Stressvermeidung', 'Förderung lokaler Reisen'], noReasons: ['Beruf erfordert Flüge', 'Familienbesuche', 'fehlende Alternativen'] },
+      { id: 10, text: 'Trenne ich meinen Abfall und recycle konsequent?', yesReasons: ['schont Ressourcen', 'reduziert Restmüll', 'unterstützt Kreislaufwirtschaft'], noReasons: ['zu aufwendig', 'fehlende Infrastruktur', 'Unklarheit bei der Trennung'] }
+    ];
+
+    let questions = [];
+    let currentQuestion = 0;
+    let answers = [];
+    let userData = {};
+    let sessionId = '';
+
+    let currentCard = null, startX = 0, startY = 0, currentX = 0, currentY = 0, isDragging = false;
+
+    const onboarding = document.getElementById('onboarding');
+    const cardStack  = document.getElementById('cardStack');
+    const reasonModal = document.getElementById('reasonModal');
+
+    document.getElementById('startBtn').addEventListener('click', startQuiz);
+    document.getElementById('continueBtn').addEventListener('click', selectReason);
+
+    // Tastatur: ← = Nein, → = Ja
+    window.addEventListener('keydown', (e) => {
+      if (reasonModal.classList.contains('active')) return;
+      if (!currentCard) return;
+      if (e.key === 'ArrowLeft') { swipe('no'); }
+      if (e.key === 'ArrowRight') { swipe('yes'); }
+    });
+
+    function shuffleArray(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function generateSessionId() {
+      return `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`; // slice statt substr
+    }
+
+    function startQuiz() {
+      const gender = document.getElementById('gender').value;
+      const age = document.getElementById('age').value;
+      if (!gender || !age) { alert('Bitte fülle alle Felder aus!'); return; }
+
+      userData = { gender, age: parseInt(age, 10) };
+      sessionId = generateSessionId();
+      questions = shuffleArray(questionsOriginal);
+
+      onboarding.style.display = 'none';
+      cardStack.style.display = 'block';
+      loadQuestion();
+    }
+
+    function loadQuestion() {
+      if (currentQuestion >= questions.length) { showResults(); return; }
+
+      cardStack.innerHTML = '';
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="question-number">Frage ${currentQuestion + 1} von ${questions.length}</div>
+        <div class="question">${questions[currentQuestion].text}</div>
+        <div class="swipe-buttons">
+          <button class="swipe-btn no-btn" aria-label="Nein" type="button">✗</button>
+          <button class="swipe-btn yes-btn" aria-label="Ja" type="button">✓</button>
+        </div>`;
+
+      cardStack.appendChild(card);
+      currentCard = card;
+
+      const [noBtn, yesBtn] = card.querySelectorAll('.swipe-btn');
+      noBtn.addEventListener('click', () => swipe('no'));
+      yesBtn.addEventListener('click', () => swipe('yes'));
+
+      // Touch
+      card.addEventListener('touchstart', handleTouchStart, { passive: true });
+      card.addEventListener('touchmove', handleTouchMove, { passive: true });
+      card.addEventListener('touchend', handleTouchEnd);
+      // Maus
+      card.addEventListener('mousedown', handleMouseDown);
+      card.addEventListener('mousemove', handleMouseMove);
+      card.addEventListener('mouseup', handleMouseUp);
+      card.addEventListener('mouseleave', handleMouseUp);
+    }
+
+    function handleTouchStart(e){ startX = e.touches[0].clientX; startY = e.touches[0].clientY; isDragging = true; currentCard.classList.add('dragging'); }
+    function handleTouchMove(e){ if(!isDragging) return; currentX = e.touches[0].clientX; currentY = e.touches[0].clientY; const dx = currentX - startX; const dy = currentY - startY; const rot = dx * 0.1; currentCard.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`; }
+    function handleTouchEnd(){ if(!isDragging) return; isDragging = false; currentCard.classList.remove('dragging'); const dx = currentX - startX; Math.abs(dx) > 100 ? swipe(dx > 0 ? 'yes' : 'no') : (currentCard.style.transform = ''); }
+
+    function handleMouseDown(e){ startX = e.clientX; startY = e.clientY; isDragging = true; currentCard.classList.add('dragging'); e.preventDefault(); }
+    function handleMouseMove(e){ if(!isDragging) return; currentX = e.clientX; currentY = e.clientY; const dx = currentX - startX; const dy = currentY - startY; const rot = dx * 0.1; currentCard.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`; }
+    function handleMouseUp(){ if(!isDragging) return; isDragging = false; currentCard.classList.remove('dragging'); const dx = currentX - startX; Math.abs(dx) > 100 ? swipe(dx > 0 ? 'yes' : 'no') : (currentCard.style.transform = ''); }
+
+    function swipe(direction){ if(currentCard){ currentCard.classList.add(direction === 'yes' ? 'swiped-right' : 'swiped-left'); } showReasonModal(direction); }
+
+    function showReasonModal(answer){
+      const title = document.getElementById('reasonTitle');
+      const options = document.getElementById('reasonOptions');
+      const q = questions[currentQuestion];
+      title.textContent = answer === 'yes' ? 'Warum Ja?' : 'Warum Nein?';
+      const reasons = answer === 'yes' ? q.yesReasons : q.noReasons;
+      options.innerHTML = reasons.map((r, i) => `<button class="reason-btn" type="button" data-idx="${i}">${r}</button>`).join('');
+      options.querySelectorAll('.reason-btn').forEach(btn => btn.addEventListener('click', () => btn.classList.toggle('selected')));
+      reasonModal.classList.add('active');
+      reasonModal.dataset.answer = answer;
+    }
+
+    function selectReason(){
+      const answer = reasonModal.dataset.answer;
+      const selectedReasons = Array.from(document.querySelectorAll('.reason-btn.selected')).map(b => b.textContent);
+      const q = questions[currentQuestion];
+      const answerData = { questionId: q.id, question: q.text, answer, reasons: selectedReasons };
+      answers.push(answerData);
+      sendToGoogleForm(answerData);
+      reasonModal.classList.remove('active');
+      currentQuestion++;
+      setTimeout(loadQuestion, 300);
+    }
+
+    function sendToGoogleForm(answerData){
+      showSyncIndicator('saving');
+      const formData = new FormData();
+      formData.append(ENTRY_IDS.timestamp, new Date().toLocaleString('de-CH'));
+      formData.append(ENTRY_IDS.sessionId, sessionId);
+      formData.append(ENTRY_IDS.age, String(userData.age));
+      formData.append(ENTRY_IDS.gender, userData.gender);
+      formData.append(ENTRY_IDS.questionNumber, String(currentQuestion + 1));
+      formData.append(ENTRY_IDS.totalQuestions, String(questions.length));
+      formData.append(ENTRY_IDS.questionId, String(answerData.questionId));
+      formData.append(ENTRY_IDS.question, answerData.question);
+      formData.append(ENTRY_IDS.answer, answerData.answer);
+      formData.append(ENTRY_IDS.reasons, answerData.reasons.join(', '));
+      formData.append(ENTRY_IDS.isComplete, currentQuestion + 1 === questions.length ? 'Ja' : 'Nein');
+
+      postViaHiddenForm(formData, () => {
+        showSyncIndicator('saved');
+        console.log(`✓ Antwort ${currentQuestion + 1} von ${questions.length} gespeichert`);
+      });
+    }
+
+    function postViaHiddenForm(formData, onDone){
+      const iframe = Object.assign(document.createElement('iframe'), { style: 'display:none;', name: `hidden_iframe_${Date.now()}` });
+      document.body.appendChild(iframe);
+      const form = Object.assign(document.createElement('form'), { style: 'display:none;', method: 'POST', action: GOOGLE_FORM_URL, target: iframe.name });
+      for (const [k,v] of formData.entries()) {
+        const input = document.createElement('input'); input.type = 'hidden'; input.name = k; input.value = v; form.appendChild(input);
+      }
+      document.body.appendChild(form);
+      form.submit();
+      setTimeout(() => { try { document.body.removeChild(form); document.body.removeChild(iframe); } catch(_){} onDone && onDone(); }, 1000);
+    }
+
+    function showSyncIndicator(status){
+      const el = document.getElementById('syncIndicator');
+      const text = document.getElementById('syncText');
+      el.className = `sync-indicator ${status}`;
+      if (status === 'saving') text.textContent = 'Speichern…';
+      else if (status === 'saved') { text.textContent = 'Gespeichert'; setTimeout(() => { el.className = 'sync-indicator'; }, 2000); }
+      else if (status === 'error') { text.textContent = 'Fehler'; setTimeout(() => { el.className = 'sync-indicator'; }, 3000); }
+    }
+
+    function showResults(){
+      document.getElementById('cardStack').style.display = 'none';
+      document.getElementById('results').style.display = 'block';
+      const yesCount = answers.filter(a => a.answer === 'yes').length;
+      const noCount  = answers.filter(a => a.answer === 'no').length;
+      const score = Math.round((yesCount / questions.length) * 100);
+      document.getElementById('score').textContent = `${score}%`;
+      document.getElementById('scoreFill').style.width = `${score}%`;
+      document.getElementById('yesCount').textContent = yesCount;
+      document.getElementById('noCount').textContent = noCount;
+      sendFinalSummary(yesCount, noCount, score);
+    }
+
+    function sendFinalSummary(yesCount, noCount, score){
+      const formData = new FormData();
+      formData.append(ENTRY_IDS.timestamp, new Date().toLocaleString('de-CH'));
+      formData.append(ENTRY_IDS.sessionId, sessionId);
+      formData.append(ENTRY_IDS.age, String(userData.age));
+      formData.append(ENTRY_IDS.gender, userData.gender);
+      formData.append(ENTRY_IDS.questionNumber, 'ZUSAMMENFASSUNG');
+      formData.append(ENTRY_IDS.totalQuestions, String(questions.length));
+      formData.append(ENTRY_IDS.questionId, 'summary');
+      formData.append(ENTRY_IDS.question, 'Endergebnis');
+      formData.append(ENTRY_IDS.answer, `Score: ${score}%`);
+      formData.append(ENTRY_IDS.reasons, `Ja: ${yesCount}, Nein: ${noCount}`);
+      formData.append(ENTRY_IDS.isComplete, 'Ja');
+      postViaHiddenForm(formData, () => console.log('✓ Zusammenfassung gespeichert'));
+    }
+  </script>
+</body>
+</html>
